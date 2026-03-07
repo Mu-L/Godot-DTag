@@ -8,6 +8,8 @@ const DOMAIN_NAME := "DOMAIN_NAME"
 const GEN_FILE := "res://dtag_def.gen.gd"
 
 func generate(parse_result: Dictionary[String, RefCounted], redirect_map: Dictionary[String, String]) -> String:
+	var old_code := FileAccess.get_file_as_string(GEN_FILE)
+
 	var fa := FileAccess.open(GEN_FILE, FileAccess.WRITE)
 	if not is_instance_valid(fa):
 		printerr("[DTag] Generate \"%s\" failed: %s" % [GEN_FILE, error_string(FileAccess.get_open_error())])
@@ -52,18 +54,36 @@ func generate(parse_result: Dictionary[String, RefCounted], redirect_map: Dictio
 	fa.store_string(text)
 	fa.close()
 
-	var opened_scripts := EditorInterface.get_script_editor().get_open_scripts()
-	for i in range(opened_scripts.size()):
-		var script := opened_scripts[i] as Script
-		if script.resource_path == GEN_FILE:
-			var se := EditorInterface.get_script_editor().get_open_script_editors().get(i) as ScriptEditorBase
-			if is_instance_valid(se):
-				var te := se.get_base_editor() as CodeEdit
-				if is_instance_valid(te):
-					te.text = text
-					te.tag_saved_version()
-			break
+	var script_editor := EditorInterface.get_script_editor()
+	var opened_scripts := script_editor.get_open_scripts()
+	if opened_scripts.any(func(s: Script) -> bool: return s.resource_path == GEN_FILE):
+		var code_editors := script_editor.get_open_script_editors()\
+			.map(func(se: ScriptEditorBase) -> CodeEdit: return se.get_base_editor())\
+			.filter(func(ce: CodeEdit) -> bool: return is_instance_valid(ce))
 
+		var reloaded :Array[bool] = [false]
+		var func_reload_text := func(ce: CodeEdit, reload_flag :Array[bool]) -> void:
+			ce.text = text
+			ce.tag_saved_version()
+			reload_flag[0] = true
+
+		if code_editors.all(func(ce: CodeEdit) -> bool: return ce.get_saved_version() == ce.get_version()):
+			var code_ediors := code_editors.filter(func(ce: CodeEdit) -> bool: return ce.text == old_code)
+			assert(code_ediors.size() >= 0, "异常情况？")
+			if code_ediors.size() == 1:
+				var ce := code_editors[0] as CodeEdit
+				func_reload_text.call(ce, reloaded)
+
+		if not reloaded[0]: ## HACK
+			var candidates := code_editors.filter(func(ce: CodeEdit) -> bool: return ce.text.contains("class_name DTagDef\n"))
+			if candidates.size() == 1:
+				var ce := code_editors[0] as CodeEdit
+				func_reload_text.call(ce, reloaded)
+
+		if not reloaded[0]:
+			push_warning("[DTag]: \"%s\" is opened in editor but can't be reload, please handle this issue by youself." % [GEN_FILE])
+
+	EditorInterface.get_resource_filesystem().update_file(GEN_FILE)
 	print("[DTag]: \"%s\" is generated." % [GEN_FILE])
 	return GEN_FILE
 
