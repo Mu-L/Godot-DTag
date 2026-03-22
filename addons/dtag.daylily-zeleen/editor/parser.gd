@@ -30,13 +30,13 @@ static func parse(text: String, r_err_info: Dictionary[int, String] = {}) -> Dic
 
 		var result := _parse_line(line)
 		assert(result.size() == 3)
-		var identifiler := result[0] as String
+		var identifier := result[0] as String
 		var redirect := result[1] as String
 		var comment := result[2] as String
 
-		if identifiler.begins_with("@"):
+		if identifier.begins_with("@"):
 			var domain := DomainDef.new()
-			domain.name = identifiler.trim_prefix("@").strip_edges()
+			domain.name = identifier.trim_prefix("@").strip_edges()
 			domain.redirect = redirect
 			domain.desc = comment
 			if indent_count == curr_indent:
@@ -72,20 +72,23 @@ static func parse(text: String, r_err_info: Dictionary[int, String] = {}) -> Dic
 					r_err_info[i] = "ERROR: need a parent domain."
 				else:
 					var parent := curr_domain.parent_domain
-					var dedent_count := curr_indent - indent_count -1
+					var dedent_count := curr_indent - indent_count
 					while dedent_count > 0:
 						dedent_count -= 1
 						parent = parent.parent_domain
 					assert(parent or indent_count == 0, "indent: %s" %indent_count)
 					domain.parent_domain = parent
+
 					if not domain.parent_domain:
 						ret[domain.name] = domain
+					else:
+						domain.parent_domain.sub_domain_list[domain.name] = domain
 
 			curr_indent = indent_count
 			curr_domain = domain
 		else:
 			var tag := TagDef.new()
-			tag.name = identifiler
+			tag.name = identifier
 			tag.redirect = redirect
 			tag.desc = comment
 			if indent_count == 0:

@@ -70,7 +70,6 @@ static func generate(files: PackedStringArray, generaters: Array[Object]) -> voi
 			for line in parse_errors:
 				printerr("\t- Line %d: %s " % [line, parse_errors[line].trim_prefix("ERROR:")])
 			return
-
 		parse_results[f] = result
 
 	# Merge
