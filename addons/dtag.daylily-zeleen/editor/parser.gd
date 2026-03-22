@@ -25,7 +25,7 @@ static func parse(text: String, r_err_info: Dictionary[int, String] = {}) -> Dic
 		var stripped := line.strip_edges()
 		if stripped.is_empty() or stripped.begins_with("#"):
 			continue
-		
+
 		var indent_count := _get_indent_count(line)
 
 		var result := _parse_line(line)
@@ -121,8 +121,12 @@ static func _parse_line(line: String) -> Array:
 
 	var comment := ""
 	var comment_idx := line.find("#")
-	if comment_idx >= 0 and line.length() >= comment_idx + 2 and line[comment_idx + 1] == "#":
-		comment = line.substr(comment_idx + 2).trim_prefix(" ")
+	if comment_idx >= 0:
+		var ofs := 1
+		if line.length() >= comment_idx + 2 and line[comment_idx + 1] == "#":
+			ofs = 2
+		if line.length() >= comment_idx + 1:
+			comment = line.substr(comment_idx + ofs).trim_prefix(" ")
 		line = line.substr(0, comment_idx)
 
 	var redirect := ""
